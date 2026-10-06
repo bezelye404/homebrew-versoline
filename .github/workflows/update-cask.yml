@@ -1,0 +1,76 @@
+name: Update cask
+
+# Checks the latest Versoline release and, when it is newer than the cask, updates the version and checksum.
+# It runs on a schedule and by hand, so no access token for the app's repository is needed.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-cask
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the latest release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api repos/bezelye404/Versoline/releases/latest --jq .tag_name)
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected tag: $tag" >&2
+            exit 1
+          fi
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with the cask
+        id: compare
+        run: |
+          current=$(sed -n 's/^  version "\(.*\)"$/\1/p' Casks/versoline.rb)
+          echo "cask: $current, release: ${{ steps.release.outputs.version }}"
+          if [ "$current" = "${{ steps.release.outputs.version }}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the disk image and compute its checksum
+        if: steps.compare.outputs.changed == 'true'
+        id: dmg
+        run: |
+          v="${{ steps.release.outputs.version }}"
+          curl -fsSL -o Versoline.dmg "https://github.com/bezelye404/Versoline/releases/download/v${v}/Versoline-${v}.dmg"
+          echo "sha=$(shasum -a 256 Versoline.dmg | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Update the cask
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          v="${{ steps.release.outputs.version }}"
+          sed -i '' -E "s/^  version \".*\"$/  version \"${v}\"/; s/^  sha256 \".*\"$/  sha256 \"${{ steps.dmg.outputs.sha }}\"/" Casks/versoline.rb
+          rm -f Versoline.dmg
+
+      - name: Audit the cask
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          brew tap-new --no-git local/check
+          cp Casks/versoline.rb "$(brew --repository)/Library/Taps/local/homebrew-check/Casks/"
+          brew style --cask local/check/versoline
+          brew audit --cask --online local/check/versoline
+
+      - name: Commit and push
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          git config user.name bezelye404
+          git config user.email 175512587+bezelye404@users.noreply.github.com
+          git add Casks/versoline.rb
+          git commit -m "Update Versoline to ${{ steps.release.outputs.version }}"
+          git push

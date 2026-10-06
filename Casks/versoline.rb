@@ -1,6 +1,6 @@
 cask "versoline" do
-  version "0.4.1"
-  sha256 "d6c3c882a6c6d59409823157049bea8ab67aa3cbc2dbe60238c2ddb958f1cddf"
+  version "0.4.0"
+  sha256 "eb69fdcf0000000000000000000000000000000000000000000000000000cd9a"
 
   url "https://github.com/bezelye404/Versoline/releases/download/v#{version}/Versoline-#{version}.dmg"
   name "Versoline"

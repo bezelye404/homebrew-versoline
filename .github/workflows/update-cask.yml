@@ -62,6 +62,7 @@ jobs:
         if: steps.compare.outputs.changed == 'true'
         run: |
           brew tap-new --no-git local/check
+          mkdir -p "$(brew --repository)/Library/Taps/local/homebrew-check/Casks"
           cp Casks/versoline.rb "$(brew --repository)/Library/Taps/local/homebrew-check/Casks/"
           brew style --cask local/check/versoline
           brew audit --cask --online local/check/versoline

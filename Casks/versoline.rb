@@ -24,6 +24,7 @@ cask "versoline" do
   zap trash: [
     "~/Library/Application Scripts/com.bezelye.Versoline",
     "~/Library/Containers/com.bezelye.Versoline",
+    "~/Library/Group Containers/group.com.bezelye.Versoline",
     "~/Library/Preferences/com.bezelye.Versoline.plist",
     "~/Library/Saved Application State/com.bezelye.Versoline.savedState",
   ]
